@@ -1,11 +1,10 @@
 """
 Example script demonstrating MAST-py usage.
-
-This script shows how to:
-1. Create an AnnData object from expression data
-2. Fit zero-inflated models using zlm()
-3. Perform Wald and likelihood ratio tests
 """
+
+import sys
+
+sys.path.insert(0, "D:/MyCode/Python/MAST-devel/MAST-devel")
 
 import numpy as np
 import pandas as pd
@@ -26,9 +25,7 @@ def create_example_data(n_cells=200, n_genes=100):
     zero_mask = np.random.random((n_genes, n_cells)) < zero_rate
     expr[zero_mask] = 0
 
-    for g in range(n_genes):
-        if group[g == 0] == "B":
-            expr[g, group == "B"] += 0.5
+    expr[:, group == "B"] += 0.5
 
     obs = pd.DataFrame(
         {
@@ -47,7 +44,7 @@ def create_example_data(n_cells=200, n_genes=100):
     var.index = [f"gene_{i}" for i in range(n_genes)]
 
     adata = anndata.AnnData(
-        X=expr,
+        X=expr.T,
         obs=obs,
         var=var,
     )
@@ -80,9 +77,10 @@ def main():
     result = mt.waldTest(zlmfit, "groupB")
     print(result.head(10))
 
-    print("\nPerforming likelihood ratio test...")
-    lr_result = mt.lrTest(zlmfit, "group")
-    print(lr_result.head(10))
+    # Skip lrTest for now as it's not fully implemented
+    # print("\nPerforming likelihood ratio test...")
+    # lr_result = mt.lrTest(zlmfit, "group")
+    # print(lr_result.head(10))
 
     print("\nDone!")
 
