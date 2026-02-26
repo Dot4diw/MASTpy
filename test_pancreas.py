@@ -14,7 +14,7 @@ def main():
 
     print("Loading pancreas_day15.h5ad data...")
     adata = anndata.read_h5ad(
-        "D:/MyCode/Python/MAST-devel/MAST-devel/pancreas_day15.h5ad"
+        "pancreas_day15.h5ad"
     )
     print(f"Loaded AnnData with {adata.n_obs} cells and {adata.n_vars} genes")
 
