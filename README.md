@@ -1,98 +1,86 @@
 # MASTpy
 
-Model-based Analysis of Single Cell Transcriptomics in Python
+Model-based Analysis of Single-cell Transcriptomics in Python
 
-A Python implementation of the R MAST package for zero-inflated model analysis of single-cell transcriptomics data.
+## Overview
+
+MASTpy is a Python implementation of the MAST (Model-based Analysis of Single-cell Transcriptomics) package originally written in R. It provides methods for analyzing single cell assay data using hurdle models, with optimized performance using Numba and multi-threading.
+
+## Features
+
+- Zero-inflated regression models for single-cell data
+- Empirical Bayes variance shrinkage
+- Parallel processing for faster computation
+- Compatible with Python 3.7+
+- Optimized performance using Numba
 
 ## Installation
 
+### From source
+
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/MASTpy.git
+cd MASTpy
+
+# Install the package
 pip install -e .
 ```
 
-## Dependencies
+### Dependencies
 
-- numpy >= 1.20.0
-- pandas >= 1.3.0
-- scipy >= 1.7.0
-- scikit-learn >= 1.0.0
-- anndata >= 0.8.0
-- scanpy >= 1.9.0
-- patsy >= 0.5.0
-- joblib
+- numpy
+- pandas
+- scikit-learn
+- scipy
+- statsmodels
+- numba
+- tqdm
 
-## Quick Start
+## Usage
+
+### Basic usage
 
 ```python
 import numpy as np
 import pandas as pd
-import anndata
-import mastpy as mt
+from mastpy import SingleCellAssay, zlm
 
-# Load data
-adata = anndata.read_h5ad('your_data.h5ad')
+# Create test data
+expression_matrix = np.random.poisson(lam=0.5, size=(100, 50))
+cdata = pd.DataFrame({
+    'condition': np.random.choice(['A', 'B'], size=50),
+    'ncells': np.ones(50, dtype=int)
+})
+fdata = pd.DataFrame(index=[f'gene_{i}' for i in range(100)])
 
-# Create group variable
-adata.obs['group'] = 'Other'
-adata.obs.loc[adata.obs['cluster'] == 'Cluster1', 'group'] = 'Cluster1'
+# Create SingleCellAssay
+sca = SingleCellAssay(expression_matrix, cdata, fdata)
 
-# Fit zero-inflated model
-zlmfit = mt.zlm(
-    formula='~ group',
-    adata=adata,
-    method='bayesglm',
-    ebayes=True,
-    parallel=True,
-    n_jobs=-1,
-)
+# Fit zlm model
+zfit = zlm('~ condition', sca, method='glm', use_ebayes=True, parallel=True)
 
-# Wald test
-result = mt.waldTest(zlmfit, 'group')
-
-# Get significant genes
-sig_genes = result[result['Pr(>Chisq)'] < 0.05]
-print(f"Significant genes: {len(sig_genes)}")
+# Access results
+print(f"Number of genes: {zfit.coefC.shape[0]}")
+print(f"Continuous coefficients shape: {zfit.coefC.shape}")
+print(f"Discrete coefficients shape: {zfit.coefD.shape}")
 ```
 
-## Main Functions
+### Advanced usage
 
-- **zlm()**: Fit zero-inflated linear model (hurdle model)
-- **waldTest()**: Wald test
-- **lrTest()**: Likelihood ratio test
-- **from_matrix()**: Create AnnData from matrix
-- **from_flat_df()**: Create AnnData from flat dataframe
+For more advanced usage, see the examples in the `examples/` directory.
 
-## Parameters
+## Directory Structure
 
-### zlm()
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| formula | str | - | Model formula (e.g., `~ group + batch`) |
-| adata | AnnData | - | Single cell data |
-| method | str | 'bayesglm' | Fitting method: 'bayesglm', 'glm', 'ridge' |
-| ebayes | bool | True | Use empirical Bayes variance shrinkage |
-| parallel | bool | True | Use multi-threading |
-| n_jobs | int | -1 | Number of cores (-1 for all) |
+## License
 
-### waldTest()
+MIT License
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| zlmfit | ZlmFit | Output from zlm() |
-| hypothesis | str | Hypothesis to test (e.g., 'group') |
+## Acknowledgments
 
-## Output Format
+This package is based on the original MAST package written in R: https://github.com/RGLab/MAST
 
-Wald test results contain:
+## References
 
-| Column | Description |
-|--------|-------------|
-| primerid | Gene name |
-| lambda | Chi-square statistic |
-| df | Degrees of freedom |
-| Pr(>Chisq) | P-value |
-
-## Reference
-
-Original R MAST package: https://github.com/RGLab/MAST
+Finak G, McDavid A, Yajima M, Deng J, Gersuk V, Shalek AK, Slichter CH, Miller H, McElrath MJ, Prlic M, et al. MAST: a flexible statistical framework for assessing transcriptional changes and characterizing heterogeneity in single-cell RNA sequencing data. Genome Biol. 2015;16:278. doi: 10.1186/s13059-015-0844-5.
