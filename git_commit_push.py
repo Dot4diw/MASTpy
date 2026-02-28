@@ -22,8 +22,8 @@ def get_changed_files():
                 # Correctly parse git status output, ensuring only file path part is taken
                 status = line[:2].strip()
                 file_path = line[2:].strip()
-                # Ignore hidden files starting with . and __pycache__ directories
-                if not file_path.startswith('.') and '__pycache__' not in file_path:
+                # Ignore hidden files except .gitignore and __pycache__ directories
+                if (not file_path.startswith('.') or file_path == '.gitignore') and '__pycache__' not in file_path:
                     changed_files.append((status, file_path))
         return changed_files
     except Exception as e:
