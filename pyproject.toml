@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Model-based Analysis of Single-cell Transcriptomics in Python"
 readme = "README.md"
 authors = [
-  { name = "dot4diw", email = "" }
+  { name = "dot4diw" }
 ]
 license = { file = "LICENSE" }
 classifiers = [
@@ -42,6 +42,3 @@ dev = [
   "flake8"
 ]
 
-[project.urls]
-Homepage = ""
-Repository = ""
