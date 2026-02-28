@@ -19,7 +19,9 @@ def get_changed_files():
         changed_files = []
         for line in result.stdout.strip().split('\n'):
             if line:
-                status, file_path = line.split(' ', 1)
+                # 正确解析git status输出，确保只取文件路径部分
+                status = line[:2].strip()
+                file_path = line[2:].strip()
                 # 忽略以.开头的隐藏文件和__pycache__目录
                 if not file_path.startswith('.') and '__pycache__' not in file_path:
                     changed_files.append((status, file_path))
