@@ -4,35 +4,35 @@ import subprocess
 import sys
 
 def check_git_repository():
-    """检查当前目录是否是git仓库"""
+    """Check if current directory is a git repository"""
     try:
         subprocess.run(['git', 'rev-parse', '--is-inside-work-tree'], check=True, capture_output=True, text=True)
         return True
     except subprocess.CalledProcessError:
-        print("错误: 当前目录不是git仓库")
+        print("Error: Current directory is not a git repository")
         return False
 
 def get_changed_files():
-    """获取所有已修改和新增的文件"""
+    """Get all modified and added files"""
     try:
         result = subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True)
         changed_files = []
         for line in result.stdout.strip().split('\n'):
             if line:
-                # 正确解析git status输出，确保只取文件路径部分
+                # Correctly parse git status output, ensuring only file path part is taken
                 status = line[:2].strip()
                 file_path = line[2:].strip()
-                # 忽略以.开头的隐藏文件和__pycache__目录
+                # Ignore hidden files starting with . and __pycache__ directories
                 if not file_path.startswith('.') and '__pycache__' not in file_path:
                     changed_files.append((status, file_path))
         return changed_files
     except Exception as e:
-        print(f"获取变更文件时出错: {e}")
+        print(f"Error getting changed files: {e}")
         return []
 
 def generate_commit_message(file_path, status):
-    """为文件生成commit message"""
-    # 根据文件类型和状态生成不同的commit message
+    """Generate commit message for file"""
+    # Generate different commit messages based on file type and status
     status_map = {
         'A': 'Add',
         'M': 'Update',
@@ -40,7 +40,7 @@ def generate_commit_message(file_path, status):
     }
     action = status_map.get(status[0], 'Modify')
     
-    # 根据文件路径确定文件类型
+    # Determine file type based on file path
     if file_path.endswith('.py'):
         file_type = 'Python script'
     elif file_path.endswith('.md'):
@@ -61,55 +61,55 @@ def generate_commit_message(file_path, status):
     return f"{action}: {file_type} {file_path}"
 
 def commit_files(changed_files):
-    """提交所有变更的文件"""
+    """Commit all changed files"""
     if not changed_files:
-        print("没有需要提交的文件")
+        print("No files need to be committed")
         return False
     
     for status, file_path in changed_files:
         try:
-            # 添加文件到暂存区
+            # Add file to staging area
             subprocess.run(['git', 'add', file_path], check=True)
-            # 生成commit message
+            # Generate commit message
             commit_msg = generate_commit_message(file_path, status)
-            # 提交文件
+            # Commit file
             subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
-            print(f"已提交: {file_path} - {commit_msg}")
+            print(f"Committed: {file_path} - {commit_msg}")
         except subprocess.CalledProcessError as e:
-            print(f"提交文件 {file_path} 时出错: {e}")
+            print(f"Error committing file {file_path}: {e}")
             return False
     
     return True
 
 def push_to_github():
-    """推送到GitHub"""
+    """Push to GitHub"""
     try:
-        # 提示用户输入远程仓库名称，默认为origin
-        remote = input("请输入远程仓库名称 (默认为origin): ") or "origin"
-        # 提示用户输入分支名称，默认为main
-        branch = input("请输入分支名称 (默认为main): ") or "main"
+        # Prompt user for remote repository name, default to origin
+        remote = input("Enter remote repository name (default: origin): ") or "origin"
+        # Prompt user for branch name, default to main
+        branch = input("Enter branch name (default: main): ") or "main"
         
-        print(f"正在推送到 {remote}/{branch}...")
+        print(f"Pushing to {remote}/{branch}...")
         subprocess.run(['git', 'push', remote, branch], check=True)
-        print("推送成功！")
+        print("Push successful!")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"推送到GitHub时出错: {e}")
+        print(f"Error pushing to GitHub: {e}")
         return False
 
 def main():
-    """主函数"""
-    # 检查当前目录是否是git仓库
+    """Main function"""
+    # Check if current directory is a git repository
     if not check_git_repository():
         sys.exit(1)
     
-    # 获取变更的文件
+    # Get changed files
     changed_files = get_changed_files()
     
-    # 提交文件
+    # Commit files
     if commit_files(changed_files):
-        # 询问是否推送到GitHub
-        push = input("是否推送到GitHub? (y/n): ")
+        # Ask if user wants to push to GitHub
+        push = input("Push to GitHub? (y/n): ")
         if push.lower() == 'y':
             push_to_github()
 
