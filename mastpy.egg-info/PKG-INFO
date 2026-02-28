@@ -1,0 +1,29 @@
+Metadata-Version: 2.1
+Name: mastpy
+Version: 0.1.0
+Summary: Model-based Analysis of Single-cell Transcriptomics in Python
+Home-page: 
+Author: MASTpy Team
+Author-email: 
+License: MIT
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
+Requires-Python: >=3.7
+Requires-Dist: numpy
+Requires-Dist: pandas
+Requires-Dist: scikit-learn
+Requires-Dist: scipy
+Requires-Dist: statsmodels
+Requires-Dist: numba
+Requires-Dist: tqdm
+
+MASTpy is a Python implementation of the MAST (Model-based Analysis of Single-cell Transcriptomics) package originally written in R. It provides methods for analyzing single cell assay data using hurdle models, with optimized performance using Numba and multi-threading.
