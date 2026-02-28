@@ -1,4 +1,6 @@
+LICENSE
 README.md
+pyproject.toml
 setup.py
 mastpy/__init__.py
 mastpy.egg-info/PKG-INFO
@@ -11,6 +13,9 @@ mastpy/core/hypothesis.py
 mastpy/core/lm_wrapper.py
 mastpy/core/single_cell_assay.py
 mastpy/core/zlm.py
+mastpy/tools/__init__.py
+mastpy/tools/find_deg.py
 mastpy/utils/__init__.py
 mastpy/utils/utils.py
+tests/test_find_deg.py
 tests/test_mastpy.py
