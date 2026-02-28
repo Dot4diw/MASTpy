@@ -5,3 +5,8 @@ scipy
 statsmodels
 numba
 tqdm
+
+[dev]
+pytest
+black
+flake8
