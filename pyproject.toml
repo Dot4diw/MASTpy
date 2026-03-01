@@ -10,11 +10,10 @@ readme = "README.md"
 authors = [
   { name = "dot4diw" }
 ]
-license = { file = "LICENSE" }
+license = "MIT"
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.7",
   "Programming Language :: Python :: 3.8",
@@ -41,4 +40,9 @@ dev = [
   "black",
   "flake8"
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mastpy*"]
+exclude = ["datasets*", "tests*"]
 

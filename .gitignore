@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+datasets/
 
 # Distribution / packaging
 .Python
@@ -32,6 +33,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
+MAST/
 # IDEs and editors
 .vscode/
 .idea/

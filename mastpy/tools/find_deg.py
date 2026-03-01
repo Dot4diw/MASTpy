@@ -5,6 +5,7 @@ import pandas as pd
 from anndata import AnnData
 from mastpy import SingleCellAssay, zlm
 from mastpy.utils.utils import getLogFC
+from statsmodels.stats.multitest import multipletests
 
 
 def find_deg(
@@ -16,8 +17,11 @@ def find_deg(
     logfc_threshold=0.1,
     min_pct=0.01,
     test_use='MAST',
+    test_method='wald',  # 'wald' or 'lr'
+    n_jobs=10,  # Number of parallel jobs to use, set to 1 for serial processing
     only_pos=False,
-    verbose=True
+    verbose=True,
+    use_log1p=False  # Whether to apply log1p transformation to the input data
 ):
     """
     Find differentially expressed genes between two groups of cells using MAST
@@ -42,16 +46,29 @@ def find_deg(
         in either of the two populations
     test_use : str, optional
         Denotes which test to use. Currently only 'MAST' is supported
+    test_method : str, optional
+        Statistical test method to use: 'wald' for Wald test or 'lr' for likelihood ratio test
+    n_jobs : int, optional
+        Number of parallel jobs to use for model fitting. Default is 10. Set to 1 for serial processing.
     only_pos : bool, optional
         Only return positive markers
     verbose : bool, optional
         Print progress messages
+    use_log1p : bool, optional
+        Whether to apply log1p transformation to the input data. 
+        Note: MAST R package expects log1p normalized data as input, so this should be True
+        if you're using raw counts.
     
     Returns
     -------
     pandas.DataFrame
         DataFrame containing differentially expressed genes with statistics
     """
+    # Note: MAST R package expects log1p normalized data as input
+    # For consistency, it's recommended to use log1p transformed data
+    if use_log1p:
+        if verbose:
+            print("Applying log1p transformation to input data...")
     # Validate input
     if test_use != 'MAST':
         raise ValueError("Currently only 'MAST' test is supported")
@@ -69,6 +86,10 @@ def find_deg(
     # Ensure expression matrix is in (n_genes, n_cells) format
     if expression_matrix.shape[0] != adata.n_vars or expression_matrix.shape[1] != adata.n_obs:
         expression_matrix = expression_matrix.T
+    
+    # Apply log1p transformation if requested
+    if use_log1p:
+        expression_matrix = np.log1p(expression_matrix)
     
     # Create cell metadata
     cdata = adata.obs.copy()
@@ -91,7 +112,7 @@ def find_deg(
         sca=sca,
         method='glm',
         use_ebayes=True,
-        parallel=False,  # Disable parallel on Windows to avoid multiprocessing issues
+        n_jobs=n_jobs,  # Use user-specified number of parallel jobs
         silent=not verbose
     )
     
@@ -115,12 +136,35 @@ def find_deg(
     # Filter logFC results for the specified contrast
     logfc_results = logfc_results[logfc_results['contrast'] == contrast_name]
     
-    # Calculate p-values (simplified approach)
-    # In a real implementation, you would need to calculate proper p-values
-    # Here we'll use a placeholder based on the absolute logFC
-    logfc_results['p_val'] = 1 / (1 + np.exp(-abs(logfc_results['logFC'])))
-    logfc_results['p_val_adj'] = logfc_results['p_val'] * len(logfc_results)
-    logfc_results['p_val_adj'] = np.minimum(logfc_results['p_val_adj'], 1)
+    # Calculate p-values based on test_method
+    if test_method == 'wald':
+        if verbose:
+            print(f"Calculating p-values using Wald test for contrast: {contrast_name}")
+        
+        # Use waldTest method to get p-values
+        test_result = zfit.waldTest(contrast_name)
+    elif test_method == 'lr':
+        if verbose:
+            print(f"Calculating p-values using Likelihood Ratio test for contrast: {contrast_name}")
+        
+        # Use lrTest method to get p-values
+        test_result = zfit.lrTest(contrast_name)
+    else:
+        raise ValueError(f"Invalid test_method: {test_method}. Must be 'wald' or 'lr'.")
+    
+    # Extract p-values from the result (using hurdle component)
+    # The result shape is (n_genes, 3, 3) where:
+    # - dimension 1: genes
+    # - dimension 2: components (0: continuous, 1: discrete, 2: hurdle)
+    # - dimension 3: values (0: statistic, 1: df, 2: p-value)
+    p_values = test_result[:, 2, 2]  # Use hurdle component's p-value
+    
+    # Perform multiple testing correction
+    p_values_adj = multipletests(p_values, method='fdr_bh')[1]
+    
+    # Add p-values to logFC results
+    logfc_results['p_val'] = p_values
+    logfc_results['p_val_adj'] = p_values_adj
     
     # Calculate percentage of cells expressing each gene in each group
     if ident_2 is None:
@@ -185,8 +229,11 @@ def find_all_degs(
     logfc_threshold=0.1,
     min_pct=0.01,
     test_use='MAST',
+    test_method='wald',  # 'wald' or 'lr'
+    n_jobs=10,  # Number of parallel jobs to use, set to 1 for serial processing
     only_pos=False,
-    verbose=True
+    verbose=True,
+    use_log1p=False  # Whether to apply log1p transformation to the input data
 ):
     """
     Find markers for all identity classes in a dataset
@@ -207,10 +254,18 @@ def find_all_degs(
         in either of the two populations
     test_use : str, optional
         Denotes which test to use. Currently only 'MAST' is supported
+    test_method : str, optional
+        Statistical test method to use: 'wald' for Wald test or 'lr' for likelihood ratio test
+    n_jobs : int, optional
+        Number of parallel jobs to use for model fitting. Default is 10. Set to 1 for serial processing.
     only_pos : bool, optional
         Only return positive markers
     verbose : bool, optional
         Print progress messages
+    use_log1p : bool, optional
+        Whether to apply log1p transformation to the input data. 
+        Note: MAST R package expects log1p normalized data as input, so this should be True
+        if you're using raw counts.
     
     Returns
     -------
@@ -236,8 +291,11 @@ def find_all_degs(
             logfc_threshold=logfc_threshold,
             min_pct=min_pct,
             test_use=test_use,
+            test_method=test_method,
+            n_jobs=n_jobs,
             only_pos=only_pos,
-            verbose=verbose
+            verbose=verbose,
+            use_log1p=use_log1p
         )
         
         # Add cluster information

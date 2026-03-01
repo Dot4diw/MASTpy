@@ -43,21 +43,33 @@ class LMlike:
         pandas.DataFrame
             Model matrix with column names matching R's format
         """
-        # 直接构建模型矩阵，确保与R的实现完全一致
-        # 对于公式 "~ condition"，模型矩阵应该包含截距项和conditionB列
+        # Extract groupby column from formula
+        # Formula format: "~ groupby"
+        groupby_col = self.formula.strip().split('~')[-1].strip()
+        
         n = len(self.design)
         
-        # 构建截距项列
+        # Build intercept column
         intercept = np.ones(n)
         
-        # 构建conditionB列：当condition为'B'时为1，否则为0
-        conditionB = (self.design['condition'] == 'B').astype(int).values
+        # Get unique values of the groupby column
+        unique_values = self.design[groupby_col].unique()
         
-        # 构建模型矩阵
-        model_matrix = np.column_stack([intercept, conditionB])
+        # Build model matrix columns
+        model_matrix_columns = ['(Intercept)']
+        model_matrix_data = [intercept]
         
-        # 转换为DataFrame并设置列名
-        model_matrix_df = pd.DataFrame(model_matrix, columns=['(Intercept)', 'conditionB'])
+        # For each unique value (except the first), create an indicator variable
+        for value in unique_values[1:]:
+            indicator = (self.design[groupby_col] == value).astype(int).values
+            model_matrix_data.append(indicator)
+            model_matrix_columns.append(f'{groupby_col}{value}')
+        
+        # Build model matrix
+        model_matrix = np.column_stack(model_matrix_data)
+        
+        # Convert to DataFrame and set column names
+        model_matrix_df = pd.DataFrame(model_matrix, columns=model_matrix_columns)
         
         return model_matrix_df
     
@@ -130,10 +142,10 @@ class LMlike:
         """
         try:
             import statsmodels.api as sm
-            # 使用statsmodels的GLM类，更接近R的实现
-            # 与R的实现一致，使用weightFun作为响应变量
+            # Use statsmodels GLM class for closer R implementation
+            # For discrete component, response should be binary (0/1) indicating zero vs non-zero
             X = self.model_matrix.values
-            y = self.weight_fun(self.response)
+            y = positive.astype(int)
             model = sm.GLM(y, X, family=sm.families.Binomial())
             result = model.fit()
             self.fitD = result
@@ -156,15 +168,23 @@ class LMlike:
         """
         try:
             import statsmodels.api as sm
-            # 使用正确的模型矩阵子集
+            # Use correct model matrix subset
             X = self.model_matrix.values[positive, :]
+            # For testing with R MAST comparison, use raw values without log1p
+            # In practice, log1p should be used for real scRNA-seq data
             y = self.response[positive]
-            # 计算权重：对于大于0的值，权重为1，否则为0
-            weights = self.weight_fun(y)
-            # 使用statsmodels的GLM类，更接近R的实现
-            # 使用与R的glm.fit相同的参数，包括权重
-            model = sm.GLM(y, X, family=sm.families.Gaussian(), freq_weights=weights)
-            result = model.fit()
+            
+            # Check if y has sufficient variation
+            if len(np.unique(y)) <= 1:
+                if not silent:
+                    print("Insufficient variation in continuous component")
+                self.fitted['C'] = False
+                return
+            
+            # For continuous component, use Gaussian family without weights
+            model = sm.GLM(y, X, family=sm.families.Gaussian())
+            # Use robust fitting with start parameters to improve stability
+            result = model.fit(start_params=None, maxiter=100, tol=1e-6)
             self.fitC = result
             self.fitted['C'] = True
         except Exception as e:
@@ -183,19 +203,19 @@ class LMlike:
         """
         if self.fitted['C']:
             npos = sum(positive)
-            # 使用设计矩阵的秩，而不是model.rank
+            # Use rank of design matrix instead of model.rank
             rank = np.linalg.matrix_rank(self.fitC.model.exog)
             self.fitC.df_residual = max(npos - rank, 0)
-            # 确保df_null有值
+            # Ensure df_null has a value
             self.fitC.df_null = npos - 1
         
         if self.fitted['D']:
             npos = sum(positive)
             n = len(positive)
-            # 使用设计矩阵的秩，而不是model.rank
+            # Use rank of design matrix instead of model.rank
             rank = np.linalg.matrix_rank(self.fitD.model.exog)
             self.fitD.df_residual = min(npos, n - npos) - rank
-            # 确保df_null有值
+            # Ensure df_null has a value
             self.fitD.df_null = n - 1
         
         # Update fitted status
@@ -271,25 +291,21 @@ class LMlike:
         numpy.ndarray
             Variance-covariance matrix
         """
-        vc = self.default_vcov.copy()
         if which == 'C' and self.fitted['C']:
             # For continuous component, use scaled covariance matrix
             dispersion = self.fitC.dispersion
-            # 使用cov_params()方法获取方差协方差矩阵
+            # Use cov_params() method to get variance-covariance matrix
             cov_params = self.fitC.cov_params()
             vcov_scaled = cov_params.values * dispersion if hasattr(cov_params, 'values') else cov_params * dispersion
-            # Fill in the valid coefficients
-            ok = self.model_matrix.columns
-            vc[[i for i, col in enumerate(self.model_matrix.columns)], :][:, [i for i, col in enumerate(self.model_matrix.columns)]] = vcov_scaled
+            return vcov_scaled
         elif which == 'D' and self.fitted['D']:
             # For discrete component, use unscaled covariance matrix
-            # 使用cov_params()方法获取方差协方差矩阵
+            # Use cov_params() method to get variance-covariance matrix
             cov_params = self.fitD.cov_params()
             vcov_scaled = cov_params.values if hasattr(cov_params, 'values') else cov_params
-            # Fill in the valid coefficients
-            ok = self.model_matrix.columns
-            vc[[i for i, col in enumerate(self.model_matrix.columns)], :][:, [i for i, col in enumerate(self.model_matrix.columns)]] = vcov_scaled
-        return vc
+            return vcov_scaled
+        else:
+            return self.default_vcov.copy()
     
     def logLik(self):
         """

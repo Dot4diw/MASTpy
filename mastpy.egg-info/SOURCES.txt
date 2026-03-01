@@ -1,7 +1,6 @@
 LICENSE
 README.md
 pyproject.toml
-setup.py
 mastpy/__init__.py
 mastpy.egg-info/PKG-INFO
 mastpy.egg-info/SOURCES.txt
