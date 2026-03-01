@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 datasets/
+*.png
+*.csv
 
 mastpy.egg-info/
 # Distribution / packaging

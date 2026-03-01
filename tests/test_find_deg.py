@@ -38,30 +38,37 @@ if __name__ == '__main__':
         ident_1='A',
         ident_2='B',
         layer='X',
-        logfc_threshold=0.1,
-        min_pct=0.01,
+        logfc_threshold=0,  # No filtering
+        min_pct=0,  # No filtering
+        test_method='lr',  # Use likelihood ratio test to match Seurat MAST
         verbose=True,
         n_jobs=1  # Set to 1 to avoid multiprocessing issues on Windows
     )
+
+    # Sort by gene name
+    deg_results = deg_results.sort_index()
 
     print("\nDifferential expression results:")
     print(deg_results.head())
     print(f"\nFound {len(deg_results)} differentially expressed genes")
-
-    # Test find_all_degs function
-    print("\nTesting find_all_degs function...")
-    all_markers = find_all_degs(
-        adata=adata,
-        groupby='condition',
-        layer='X',
-        logfc_threshold=0.1,
-        min_pct=0.01,
-        verbose=True,
-        n_jobs=1  # Set to 1 to avoid multiprocessing issues on Windows
-    )
-
-    print("\nAll markers results:")
-    print(all_markers.head())
-    print(f"\nFound {len(all_markers)} markers in total")
-
+    # Save test data for Seurat testing
+    deg_results.to_csv("mastpy_results.csv", index=True)
+    print("\nSaving test data for Seurat testing...")
+    
+    # Save expression matrix as CSV (genes x cells)
+    expression_df = pd.DataFrame(expression_matrix, index=fdata.index, columns=cdata.index)
+    expression_df.to_csv("test_expression_matrix.csv")
+    
+    # Save cell metadata as CSV
+    cdata.to_csv("test_cell_metadata.csv")
+    
+    # Save feature metadata as CSV
+    fdata.to_csv("test_feature_metadata.csv")
+    
+    print("Test data saved successfully!")
+    print("Files saved:")
+    print("- test_expression_matrix.csv (genes x cells)")
+    print("- test_cell_metadata.csv (cell metadata)")
+    print("- test_feature_metadata.csv (gene metadata)")
+    
     print("\nTest completed successfully!")

@@ -20,8 +20,7 @@ def find_deg(
     test_method='wald',  # 'wald' or 'lr'
     n_jobs=10,  # Number of parallel jobs to use, set to 1 for serial processing
     only_pos=False,
-    verbose=True,
-    use_log1p=False  # Whether to apply log1p transformation to the input data
+    verbose=True
 ):
     """
     Find differentially expressed genes between two groups of cells using MAST
@@ -54,21 +53,12 @@ def find_deg(
         Only return positive markers
     verbose : bool, optional
         Print progress messages
-    use_log1p : bool, optional
-        Whether to apply log1p transformation to the input data. 
-        Note: MAST R package expects log1p normalized data as input, so this should be True
-        if you're using raw counts.
     
     Returns
     -------
     pandas.DataFrame
         DataFrame containing differentially expressed genes with statistics
     """
-    # Note: MAST R package expects log1p normalized data as input
-    # For consistency, it's recommended to use log1p transformed data
-    if use_log1p:
-        if verbose:
-            print("Applying log1p transformation to input data...")
     # Validate input
     if test_use != 'MAST':
         raise ValueError("Currently only 'MAST' test is supported")
@@ -86,10 +76,6 @@ def find_deg(
     # Ensure expression matrix is in (n_genes, n_cells) format
     if expression_matrix.shape[0] != adata.n_vars or expression_matrix.shape[1] != adata.n_obs:
         expression_matrix = expression_matrix.T
-    
-    # Apply log1p transformation if requested
-    if use_log1p:
-        expression_matrix = np.log1p(expression_matrix)
     
     # Create cell metadata
     cdata = adata.obs.copy()
@@ -232,8 +218,7 @@ def find_all_degs(
     test_method='wald',  # 'wald' or 'lr'
     n_jobs=10,  # Number of parallel jobs to use, set to 1 for serial processing
     only_pos=False,
-    verbose=True,
-    use_log1p=False  # Whether to apply log1p transformation to the input data
+    verbose=True
 ):
     """
     Find markers for all identity classes in a dataset
@@ -262,10 +247,6 @@ def find_all_degs(
         Only return positive markers
     verbose : bool, optional
         Print progress messages
-    use_log1p : bool, optional
-        Whether to apply log1p transformation to the input data. 
-        Note: MAST R package expects log1p normalized data as input, so this should be True
-        if you're using raw counts.
     
     Returns
     -------
@@ -294,8 +275,7 @@ def find_all_degs(
             test_method=test_method,
             n_jobs=n_jobs,
             only_pos=only_pos,
-            verbose=verbose,
-            use_log1p=use_log1p
+            verbose=verbose
         )
         
         # Add cluster information
