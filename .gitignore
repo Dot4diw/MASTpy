@@ -57,3 +57,5 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+git_commit_push.py
