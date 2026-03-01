@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 datasets/
 
+mastpy.egg-info/
 # Distribution / packaging
 .Python
 build/
