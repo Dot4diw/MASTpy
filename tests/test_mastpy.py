@@ -28,7 +28,7 @@ if __name__ == '__main__':
     
     # Test zlm function
     print("\nFitting zlm model...")
-    zfit = zlm('~ condition', sca, method='glm', use_ebayes=True, parallel=True)
+    zfit = zlm('~ condition', sca, method='glm', use_ebayes=True, n_jobs=1)
     
     print("\nZlmFit object created successfully!")
     print(f"Number of genes: {zfit.coefC.shape[0]}")
