@@ -6,6 +6,40 @@ from anndata import AnnData
 from mastpy import SingleCellAssay, zlm
 from mastpy.utils.utils import getLogFC
 from statsmodels.stats.multitest import multipletests
+import scanpy as sc
+
+
+def _calculate_avg_expr_log2fc(expression_matrix, cells_1, cells_2, base=2, pseudocount=1):
+    """
+    Calculate average expression log2 fold change based on expression values
+    
+    Parameters
+    ----------
+    expression_matrix : numpy.ndarray
+        Expression matrix in (n_genes, n_cells) format
+    cells_1 : numpy.ndarray
+        Boolean array indicating cells in group 1
+    cells_2 : numpy.ndarray
+        Boolean array indicating cells in group 2
+    base : int, optional
+        Base for logarithm calculation
+    pseudocount : float, optional
+        Pseudocount to add before log transformation
+    
+    Returns
+    -------
+    numpy.ndarray
+        Array of log2 fold changes
+    """
+    # Calculate mean expression for each group
+    # For log-normalized data, we need to expm1 first, then calculate mean, then log again
+    mean_1 = np.mean(np.expm1(expression_matrix[:, cells_1]), axis=1) + pseudocount
+    mean_2 = np.mean(np.expm1(expression_matrix[:, cells_2]), axis=1) + pseudocount
+    
+    # Calculate log2 fold change
+    log2fc = np.log(mean_1 / mean_2) / np.log(base)
+    
+    return log2fc
 
 
 def find_deg(
@@ -13,7 +47,7 @@ def find_deg(
     groupby,
     ident_1,
     ident_2=None,
-    layer='counts',
+    layer=None,
     logfc_threshold=0.1,
     min_pct=0.01,
     test_use='MAST',
@@ -36,7 +70,7 @@ def find_deg(
     ident_2 : str or list, optional
         A second identity class for comparison. If None, use all other cells
     layer : str, optional
-        Layer in adata to use for expression data
+        Layer in adata to use for expression data. If None, use adata.X
     logfc_threshold : float, optional
         Limit testing to genes which show, on average, at least X-fold difference
         (log-scale) between the two groups of cells
@@ -64,7 +98,7 @@ def find_deg(
         raise ValueError("Currently only 'MAST' test is supported")
     
     # Extract expression matrix
-    if layer in adata.layers:
+    if layer is not None and layer in adata.layers:
         expression_matrix = adata.layers[layer]
     else:
         expression_matrix = adata.X
@@ -76,6 +110,30 @@ def find_deg(
     # Ensure expression matrix is in (n_genes, n_cells) format
     if expression_matrix.shape[0] != adata.n_vars or expression_matrix.shape[1] != adata.n_obs:
         expression_matrix = expression_matrix.T
+    
+    # Check if data is log1p normalized, if not, normalize it
+    # We'll check by looking at the distribution of values
+    # Log1p normalized data typically has values > 0 and < ~15
+    if np.max(expression_matrix) > 15 or np.min(expression_matrix) < 0:
+        if verbose:
+            print("Data does not appear to be log1p normalized. Performing normalization...")
+        # Create a copy of adata for normalization
+        adata_norm = adata.copy()
+        # Normalize total counts to 1e4 per cell
+        sc.pp.normalize_total(adata_norm, target_sum=1e4)
+        # Log transform
+        sc.pp.log1p(adata_norm)
+        # Update expression matrix
+        if layer is not None and layer in adata_norm.layers:
+            expression_matrix = adata_norm.layers[layer]
+        else:
+            expression_matrix = adata_norm.X
+        # Convert to numpy array if needed
+        if hasattr(expression_matrix, 'toarray'):
+            expression_matrix = expression_matrix.toarray()
+        # Ensure correct shape
+        if expression_matrix.shape[0] != adata_norm.n_vars or expression_matrix.shape[1] != adata_norm.n_obs:
+            expression_matrix = expression_matrix.T
     
     # Create cell metadata
     cdata = adata.obs.copy()
@@ -102,7 +160,7 @@ def find_deg(
         silent=not verbose
     )
     
-    # Get log fold changes
+    # Get MAST log fold changes (hurdle model based)
     logfc_results = getLogFC(zfit)
     
     # Filter results based on ident_1 and ident_2
@@ -174,29 +232,41 @@ def find_deg(
         'pct.2': pct_2
     })
     
-    # Merge with logFC results
+    # Calculate average expression log2FC (Seurat style)
+    avg_expr_log2fc = _calculate_avg_expr_log2fc(expression_matrix, cells_1, cells_2)
+    
+    # Create avg_expr_log2fc dataframe
+    avg_expr_log2fc_df = pd.DataFrame({
+        'primerid': adata.var_names,
+        'avg_expr_log2FC': avg_expr_log2fc
+    })
+    
+    # Merge all results
     results = pd.merge(logfc_results, pct_df, on='primerid', how='left')
+    results = pd.merge(results, avg_expr_log2fc_df, on='primerid', how='left')
+    
+    # Rename MAST logFC to hurdle_log2FC
+    results = results.rename(columns={'logFC': 'hurdle_log2FC'})
     
     # Filter based on logfc_threshold and min_pct
-    results = results[abs(results['logFC']) >= logfc_threshold]
+    results = results[abs(results['hurdle_log2FC']) >= logfc_threshold]
     results = results[(results['pct.1'] >= min_pct) | (results['pct.2'] >= min_pct)]
     
     # Filter for positive markers if requested
     if only_pos:
-        results = results[results['logFC'] > 0]
+        results = results[results['hurdle_log2FC'] > 0]
     
     # Sort by adjusted p-value
     results = results.sort_values('p_val_adj')
     
-    # Rename columns to match Seurat's output
+    # Rename columns to match Seurat's output format
     results = results.rename(columns={
-        'primerid': 'gene',
-        'logFC': 'avg_log2FC'
+        'primerid': 'gene'
     })
     
     # Reorder columns
     results = results[[
-        'gene', 'avg_log2FC', 'pct.1', 'pct.2', 'p_val', 'p_val_adj'
+        'gene', 'hurdle_log2FC', 'avg_expr_log2FC', 'pct.1', 'pct.2', 'p_val', 'p_val_adj'
     ]]
     
     # Set gene as index
@@ -211,7 +281,7 @@ def find_deg(
 def find_all_degs(
     adata,
     groupby,
-    layer='counts',
+    layer=None,
     logfc_threshold=0.1,
     min_pct=0.01,
     test_use='MAST',
@@ -230,7 +300,7 @@ def find_all_degs(
     groupby : str
         Column name in adata.obs used for grouping cells
     layer : str, optional
-        Layer in adata to use for expression data
+        Layer in adata to use for expression data. If None, use adata.X
     logfc_threshold : float, optional
         Limit testing to genes which show, on average, at least X-fold difference
         (log-scale) between the two groups of cells
