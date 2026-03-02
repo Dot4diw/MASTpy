@@ -1,4 +1,4 @@
-# MASTpy （Underdevelopment！）
+# MASTpy
 
 Model-based Analysis of Single-cell Transcriptomics in Python
 
@@ -13,6 +13,9 @@ MASTpy is a Python implementation of the MAST (Model-based Analysis of Single-ce
 - Parallel processing for faster computation
 - Compatible with Python 3.7+
 - Optimized performance using Numba
+- Support for both Wald and Likelihood Ratio tests
+- Integration with AnnData objects
+- Flexible data layer selection for analysis
 
 ## Installation
 
@@ -36,10 +39,11 @@ pip install -e .
 - statsmodels
 - numba
 - tqdm
+- anndata (for AnnData integration)
 
 ## Usage
 
-### Basic usage
+### Basic usage with SingleCellAssay
 
 ```python
 import numpy as np
@@ -58,7 +62,7 @@ fdata = pd.DataFrame(index=[f'gene_{i}' for i in range(100)])
 sca = SingleCellAssay(expression_matrix, cdata, fdata)
 
 # Fit zlm model
-zfit = zlm('~ condition', sca, method='glm', use_ebayes=True, parallel=True)
+zfit = zlm('~ condition', sca, method='glm', use_ebayes=True, n_jobs=10)
 
 # Access results
 print(f"Number of genes: {zfit.coefC.shape[0]}")
@@ -66,12 +70,38 @@ print(f"Continuous coefficients shape: {zfit.coefC.shape}")
 print(f"Discrete coefficients shape: {zfit.coefD.shape}")
 ```
 
+### Differential expression analysis with AnnData
+
+```python
+import anndata as ad
+from mastpy.tools import find_deg
+
+# Load your AnnData object
+adata = ad.read_h5ad('datasets/test.h5ad')
+
+# Perform differential expression analysis
+deg_results = find_deg(
+    adata=adata,
+    groupby='condition',
+    ident_1='A',
+    ident_2='B',
+    layer='log1p_norm',  # Use log1p normalized data
+    logfc_threshold=0.1,
+    min_pct=0.01,
+    test_use='MAST',
+    test_method='wald',  # 'wald' or 'lr'
+    n_jobs=10,  # Number of parallel jobs
+    only_pos=False,
+    verbose=True
+)
+
+# View results
+print(deg_results.head())
+```
+
 ### Advanced usage
 
 For more advanced usage, see the examples in the `examples/` directory.
-
-## Directory Structure
-
 
 ## License
 
