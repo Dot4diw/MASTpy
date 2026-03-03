@@ -11,7 +11,7 @@ MASTpy is a Python implementation of the MAST (Model-based Analysis of Single-ce
 - Zero-inflated regression models for single-cell data
 - Empirical Bayes variance shrinkage
 - Parallel processing for faster computation
-- Compatible with Python 3.7+
+- Compatible with Python 3.12+
 - Optimized performance using Numba
 - Support for both Wald and Likelihood Ratio tests
 - Integration with AnnData objects
