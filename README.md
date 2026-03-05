@@ -102,15 +102,3 @@ print(deg_results.head())
 ### Advanced usage
 
 For more advanced usage, see the examples in the `examples/` directory.
-
-## License
-
-MIT License
-
-## Acknowledgments
-
-This package is based on the original MAST package written in R: https://github.com/RGLab/MAST
-
-## References
-
-Finak G, McDavid A, Yajima M, Deng J, Gersuk V, Shalek AK, Slichter CH, Miller H, McElrath MJ, Prlic M, et al. MAST: a flexible statistical framework for assessing transcriptional changes and characterizing heterogeneity in single-cell RNA sequencing data. Genome Biol. 2015;16:278. doi: 10.1186/s13059-015-0844-5.
