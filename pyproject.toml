@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Model-based Analysis of Single-cell Transcriptomics in Python"
 readme = "README.md"
 authors = [
-  { name = "dot4diw" }
+  { name = "Bitpulses" }
 ]
 license = "MIT"
 classifiers = [
@@ -45,4 +45,5 @@ dev = [
 where = ["."]
 include = ["mastpy*"]
 exclude = ["datasets*", "tests*"]
+
 
